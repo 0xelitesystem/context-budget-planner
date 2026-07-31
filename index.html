@@ -1,0 +1,2011 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Context Budget Planner - plan an agent context window like a budget</title>
+<meta name="description" content="Allocate an agent context window across system prompt, tool definitions, history, retrieved chunks, few-shot examples, scratchpad, and a reserved output block. See the stacked budget, the overflow, and how many turns you have left. Runs entirely in your browser.">
+<link rel="canonical" href="https://0xelitesystem.github.io/context-budget-planner/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Context Budget Planner">
+<meta property="og:description" content="Plan an agent context window like a budget: allocate the window across competing consumers, see the overflow before production does, and export the plan as Markdown or JSON.">
+<meta property="og:url" content="https://0xelitesystem.github.io/context-budget-planner/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Context Budget Planner">
+<meta name="twitter:description" content="Plan an agent context window like a budget. Browser only, no external dependencies.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Context Budget Planner",
+  "description": "Allocate an agent context window across competing consumers, find the overflow before production does, and export the plan as Markdown or JSON.",
+  "url": "https://0xelitesystem.github.io/context-budget-planner/",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "0xelitesystem",
+    "url": "https://elitesystem.ai"
+  }
+}
+</script>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0a0f16;
+  --bg-grad: radial-gradient(1200px 600px at 12% -10%, #142132 0%, transparent 62%),
+             radial-gradient(900px 500px at 100% 0%, #131c2b 0%, transparent 58%);
+  --surface: #111926;
+  --surface-2: #16202f;
+  --surface-3: #1b2637;
+  --line: #27364e;
+  --line-soft: #1e2a3d;
+  --ink: #e8eef8;
+  --ink-soft: #a7b6cc;
+  --ink-dim: #7b8ba4;
+  --accent: #4cc4ff;
+  --accent-2: #f2b544;
+  --on-accent: #05202e;
+  --ok: #46d38a;
+  --warn: #f2b544;
+  --err: #ff7a6e;
+  --focus: #8bdcff;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.42);
+  --seg-system: #7c7cf0;
+  --seg-tools: #22b8d6;
+  --seg-history: #3fb96b;
+  --seg-retrieval: #e0952a;
+  --seg-fewshot: #a763d8;
+  --seg-scratchpad: #dd5f97;
+  --seg-other: #6b7c96;
+  --seg-output: #9fb0c8;
+  --seg-over: #e8574a;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f6fb;
+  --bg-grad: radial-gradient(1100px 560px at 10% -12%, #e2eaf7 0%, transparent 62%),
+             radial-gradient(900px 480px at 100% 0%, #eae5f7 0%, transparent 58%);
+  --surface: #ffffff;
+  --surface-2: #f4f7fc;
+  --surface-3: #eaf0f8;
+  --line: #c9d5e6;
+  --line-soft: #dde5f0;
+  --ink: #101a27;
+  --ink-soft: #3d4c61;
+  --ink-dim: #5d6c82;
+  --accent: #0d6b96;
+  --accent-2: #96610b;
+  --on-accent: #ffffff;
+  --ok: #10693f;
+  --warn: #8a5c00;
+  --err: #a52a1c;
+  --focus: #0d6b96;
+  --shadow: 0 10px 26px rgba(20, 35, 60, 0.12);
+  --seg-system: #5b5bd6;
+  --seg-tools: #0e8ba6;
+  --seg-history: #1f8a4c;
+  --seg-retrieval: #a86c11;
+  --seg-fewshot: #7c3fb0;
+  --seg-scratchpad: #b33a72;
+  --seg-other: #556579;
+  --seg-output: #7d8ea6;
+  --seg-over: #c1372a;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background-color: var(--bg);
+  background-image: var(--bg-grad);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+.mono, code, textarea.code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 56px; }
+
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.skip {
+  position: absolute; left: -9999px; top: 0;
+  background: var(--surface); color: var(--ink);
+  padding: 10px 14px; border-radius: 8px; border: 1px solid var(--line); z-index: 50;
+}
+.skip:focus { left: 12px; top: 12px; }
+
+header.top {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  align-items: flex-start; justify-content: space-between;
+  padding: 8px 0 18px;
+}
+.brand h1 {
+  margin: 0; font-size: 26px; line-height: 1.15; letter-spacing: -0.01em;
+}
+.brand .tag { margin: 6px 0 0; color: var(--ink-soft); max-width: 62ch; }
+.brand .kicker {
+  display: inline-block; margin-bottom: 8px;
+  font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--accent-2); font-weight: 700;
+}
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+button {
+  font: inherit; cursor: pointer;
+  border-radius: 9px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--ink);
+  padding: 8px 13px; transition: background .14s ease, border-color .14s ease, transform .06s ease;
+}
+button:hover { background: var(--surface-3); border-color: var(--accent); }
+button:active { transform: translateY(1px); }
+button.primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 650; }
+button.primary:hover { filter: brightness(1.07); }
+button.ghost { background: transparent; }
+button.tiny { padding: 5px 9px; font-size: 13px; }
+button[disabled] { opacity: .5; cursor: not-allowed; }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+
+section.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 16px 18px;
+  margin: 0 0 16px;
+  box-shadow: var(--shadow);
+}
+.grid2 > section.card { margin: 0; }
+.card > h2 {
+  margin: 0 0 4px; font-size: 15px; letter-spacing: 0.02em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 700;
+}
+.card > .hint { margin: 0 0 14px; color: var(--ink-dim); font-size: 13px; }
+.hint a { color: var(--accent); }
+
+label { display: block; font-size: 13px; color: var(--ink-soft); margin-bottom: 4px; font-weight: 600; }
+input[type="text"], input[type="number"], select, textarea {
+  width: 100%; font: inherit; color: var(--ink);
+  background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 9px; padding: 8px 10px;
+}
+textarea { resize: vertical; min-height: 74px; line-height: 1.45; }
+select { appearance: none; background-image: none; }
+.field { margin-bottom: 12px; }
+.field:last-child { margin-bottom: 0; }
+.field .sub { font-size: 12px; color: var(--ink-dim); margin-top: 4px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row2b { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+
+/* ---- line items ---- */
+ul.items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+li.item {
+  border: 1px solid var(--line-soft); border-radius: 12px;
+  background: var(--surface-2); padding: 12px;
+  border-left: 5px solid var(--seg-other);
+}
+.item-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.item-head .f-name { flex: 3 1 190px; min-width: 0; }
+.item-head .f-kind { flex: 2 1 150px; min-width: 0; }
+.item-head .f-mode { flex: 2 1 150px; min-width: 0; }
+.item-head .f-del { flex: 0 0 auto; }
+.item-body { margin-top: 10px; }
+.mode-group[hidden] { display: none; }
+.units-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; }
+.units-row .times { padding-bottom: 9px; color: var(--ink-dim); font-weight: 700; }
+.item-out {
+  margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between;
+}
+.item-out .math { font-size: 13px; color: var(--ink-soft); }
+.item-out .amount { font-weight: 700; white-space: nowrap; }
+.item-out .amount .share { color: var(--ink-dim); font-weight: 500; margin-left: 6px; font-size: 13px; }
+.badge {
+  display: inline-block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-dim);
+}
+
+.empty {
+  border: 1px dashed var(--line); border-radius: 12px; padding: 22px 16px;
+  text-align: center; color: var(--ink-soft); background: var(--surface-2);
+}
+.empty p { margin: 0 0 12px; }
+
+/* ---- budget bar ---- */
+.status {
+  display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline;
+  font-size: 19px; font-weight: 700; margin: 0 0 4px;
+}
+.status .sub { font-size: 13px; font-weight: 500; color: var(--ink-soft); }
+.status.is-ok { color: var(--ok); }
+.status.is-warn { color: var(--warn); }
+.status.is-over { color: var(--err); }
+
+.bar-wrap { position: relative; margin: 16px 0 8px; }
+.bar-track {
+  position: relative;
+  display: flex; height: 38px; border-radius: 10px; overflow: hidden;
+  background: var(--surface-3); border: 1px solid var(--line);
+}
+.seg { min-width: 0; }
+.seg-reserve {
+  background-color: var(--surface-3);
+  background-image: repeating-linear-gradient(45deg, var(--seg-output) 0 7px, transparent 7px 14px);
+}
+.seg-head {
+  background-color: transparent;
+  background-image: repeating-linear-gradient(45deg, var(--line) 0 1px, transparent 1px 9px);
+}
+.seg-over { background-color: var(--seg-over); }
+.limit-mark {
+  position: absolute; top: -7px; bottom: -7px; width: 2px;
+  background: var(--ink); border-radius: 2px;
+}
+.bar-scale {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12px; color: var(--ink-dim); margin-top: 10px;
+}
+
+ul.legend { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+ul.legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.swatch { width: 13px; height: 13px; border-radius: 4px; flex: 0 0 auto; border: 1px solid rgba(127,127,127,.35); }
+.swatch.reserve { background-color: var(--surface-3); background-image: repeating-linear-gradient(45deg, var(--seg-output) 0 4px, transparent 4px 8px); }
+.swatch.head { background-image: repeating-linear-gradient(45deg, var(--line) 0 1px, transparent 1px 5px); }
+.legend .n { color: var(--ink-dim); }
+
+.totals { margin-top: 16px; font-size: 13.5px; color: var(--ink-soft); }
+.totals .eq { display: block; margin-top: 4px; word-break: break-word; }
+
+.callout {
+  margin-top: 16px; border: 1px solid var(--line); border-left: 5px solid var(--err);
+  border-radius: 10px; padding: 12px 14px; background: var(--surface-2);
+}
+.callout h3 { margin: 0 0 6px; font-size: 14px; }
+.callout ul { margin: 8px 0 0; padding-left: 20px; }
+.callout li { margin-bottom: 4px; }
+
+/* ---- checks ---- */
+ul.checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+li.check {
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  background: var(--surface-2); border-left: 5px solid var(--ink-dim);
+}
+li.check.lvl-error { border-left-color: var(--err); }
+li.check.lvl-warn { border-left-color: var(--warn); }
+li.check.lvl-ok { border-left-color: var(--ok); }
+li.check.lvl-info { border-left-color: var(--accent); }
+li.check .t { font-weight: 700; font-size: 14px; }
+li.check .d { font-size: 13px; color: var(--ink-soft); margin-top: 3px; }
+li.check .d code { background: var(--surface-3); padding: 1px 5px; border-radius: 5px; font-size: 12.5px; }
+
+.turn-figure {
+  font-size: 34px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin: 4px 0 2px;
+}
+.turn-note { font-size: 13px; color: var(--ink-soft); }
+
+/* ---- export ---- */
+.export-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.export-head h3 { margin: 0; font-size: 14px; }
+textarea.code { min-height: 190px; font-size: 12.5px; background: var(--surface-2); }
+
+footer.bottom {
+  margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; justify-content: space-between;
+  font-size: 13px; color: var(--ink-dim);
+}
+footer.bottom nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .wrap { padding: 14px 12px 44px; }
+  .brand h1 { font-size: 22px; }
+  .row2 { grid-template-columns: 1fr; }
+  .units-row { grid-template-columns: 1fr; }
+  .units-row .times { padding-bottom: 0; }
+  .item-head .f-del { width: 100%; }
+  .item-head .f-del button { width: 100%; }
+  .turn-figure { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+<script>
+(function () {
+  try {
+    var saved = window.localStorage.getItem('cbp.theme');
+    if (saved === 'light' || saved === 'dark') {
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  } catch (err) { /* storage blocked; stay on the default dark theme */ }
+})();
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the planner</a>
+<div class="wrap">
+
+<header class="top">
+  <div class="brand">
+    <span class="kicker">elitesystem.ai tool</span>
+    <h1>Context Budget Planner</h1>
+    <p class="tag">Plan an agent's context window like a budget. Allocate the window across every consumer that competes for it, watch the stacked bar, and find the overflow here instead of in production.</p>
+  </div>
+  <div class="toolbar">
+    <button type="button" id="btn-sample" class="primary">Load sample</button>
+    <button type="button" id="btn-add">Add line item</button>
+    <button type="button" id="btn-reset" class="ghost">Reset</button>
+    <button type="button" id="btn-theme" class="ghost" aria-pressed="false">Light theme</button>
+  </div>
+</header>
+
+<main id="main">
+
+<div class="grid2">
+  <section class="card">
+    <h2>Window</h2>
+    <p class="hint">Pick a model or type your own number. The number in the box always wins.</p>
+
+    <div class="field">
+      <label for="model-select">Model or preset</label>
+      <select id="model-select"></select>
+      <p class="sub" id="model-note">Convenience list, checked 2026-07-31. Not authoritative: context limits change and vary by deployment. Verify against your provider's documentation.</p>
+    </div>
+
+    <div class="field">
+      <label for="limit-input">Context limit (tokens)</label>
+      <input type="number" id="limit-input" min="1" step="1000" inputmode="numeric" value="128000">
+    </div>
+
+    <div class="field">
+      <label for="cpt-input">Characters per token (estimation basis)</label>
+      <input type="number" id="cpt-input" min="0.5" step="0.1" inputmode="decimal" value="4">
+      <p class="sub">Only line items sized by pasted text use this. It is a transparent character-based heuristic, <strong>not a tokenizer</strong>. The true count varies by tokenizer and by language, and code, JSON, and non-Latin scripts tokenize very differently from English prose. To see real token boundaries use <a href="https://github.com/0xelitesystem/tokenizer-visualizer" rel="noopener">tokenizer-visualizer</a>; for cost use <a href="https://github.com/0xelitesystem/prompt-cost-calculator" rel="noopener">prompt-cost-calculator</a>.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Assumptions</h2>
+    <p class="hint">These drive the checks below. Defaults are starting points, not standards. Change them to match your workload.</p>
+
+    <div class="row2">
+      <div class="field">
+        <label for="expected-input">Response you expect (tokens)</label>
+        <input type="number" id="expected-input" min="0" step="100" inputmode="numeric" value="1500">
+        <p class="sub">Checked against your reserved output block.</p>
+      </div>
+      <div class="field">
+        <label for="toolresult-input">Typical tool result (tokens)</label>
+        <input type="number" id="toolresult-input" min="0" step="100" inputmode="numeric" value="800">
+        <p class="sub">Checked against leftover headroom.</p>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="avgturn-input">Average tokens added per turn</label>
+        <input type="number" id="avgturn-input" min="0" step="50" inputmode="numeric" value="600">
+        <p class="sub">User message plus assistant reply plus tool traffic, averaged.</p>
+      </div>
+      <div class="field">
+        <label for="toolpct-input">Tool definition warning threshold (percent of window)</label>
+        <input type="number" id="toolpct-input" min="0" max="100" step="1" inputmode="numeric" value="10">
+        <p class="sub">Rule of thumb, editable. No standard exists.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Line items</h2>
+  <p class="hint">Each item can be sized three ways: paste the actual text and have it estimated, enter a token count directly, or enter a unit count times a per-unit size. The arithmetic for every item is shown under it.</p>
+  <ul class="items" id="items-list"></ul>
+  <div class="empty" id="items-empty" hidden>
+    <p>No line items yet. A context budget needs at least a system prompt and a reserved output block.</p>
+    <p><button type="button" class="primary" id="btn-empty-sample">Load sample</button> <button type="button" id="btn-empty-add">Add a blank item</button></p>
+  </div>
+  <p style="margin:14px 0 0"><button type="button" id="btn-add-2">Add line item</button></p>
+</section>
+
+<section class="card">
+  <h2>The budget</h2>
+  <p class="hint">Every consumer, the reserved output block, and whatever headroom is left. Anything past the limit marker is overflow.</p>
+
+  <p class="status" id="status-line" aria-live="polite"><span id="status-main">Nothing planned yet.</span> <span class="sub" id="status-sub"></span></p>
+
+  <div class="bar-wrap">
+    <div class="bar-track" id="bar-track" role="img" aria-label="Context window allocation"></div>
+    <div class="limit-mark" id="limit-mark" hidden></div>
+  </div>
+  <div class="bar-scale">
+    <span>0</span>
+    <span id="scale-limit">limit</span>
+  </div>
+
+  <ul class="legend" id="legend"></ul>
+
+  <div class="totals" id="totals"></div>
+
+  <div id="overflow-box"></div>
+</section>
+
+<div class="grid2">
+  <section class="card">
+    <h2>Checks</h2>
+    <p class="hint">The failures that actually bite a practitioner, evaluated against your numbers.</p>
+    <ul class="checks" id="checks"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Turns until overflow</h2>
+    <p class="hint">Given the current fixed cost and your average tokens per turn, how many more exchanges fit before the window is exhausted.</p>
+    <p class="turn-figure" id="turn-figure">-</p>
+    <p class="turn-note" id="turn-note"></p>
+  </section>
+</div>
+
+<section class="card">
+  <h2>Export</h2>
+  <p class="hint">Drop the plan into a design doc or check it into a repo next to the prompt it describes.</p>
+
+  <div class="export-head">
+    <h3>Markdown</h3>
+    <button type="button" class="tiny" id="btn-copy-md" data-target="out-md">Copy Markdown</button>
+  </div>
+  <label class="visually-hidden" for="out-md">Plan as Markdown</label>
+  <textarea class="code" id="out-md" readonly spellcheck="false"></textarea>
+
+  <div class="export-head" style="margin-top:16px">
+    <h3>JSON</h3>
+    <button type="button" class="tiny" id="btn-copy-json" data-target="out-json">Copy JSON</button>
+  </div>
+  <label class="visually-hidden" for="out-json">Plan as JSON</label>
+  <textarea class="code" id="out-json" readonly spellcheck="false"></textarea>
+</section>
+
+<section class="card">
+  <h2>What this is, and what it is not</h2>
+  <p class="hint" style="margin-bottom:10px">Honest boundaries.</p>
+  <ul style="margin:0; padding-left:20px; color:var(--ink-soft); font-size:14px">
+    <li><strong>Token counts from pasted text are estimates.</strong> A character-per-token divisor is a heuristic, not a tokenizer. Treat estimated items as approximate and enter measured counts when you have them.</li>
+    <li><strong>Context limits are editable for a reason.</strong> The preset list is a convenience checked on 2026-07-31, not an authority. Providers change limits and deployments differ.</li>
+    <li><strong>Thresholds are yours.</strong> "More than half the window on retrieval" and the tool-definition percentage are rules of thumb this tool exposes as inputs, not published standards.</li>
+    <li><strong>Nothing is sent anywhere.</strong> No network requests, no external dependencies, no analytics. Your prompts stay in the tab.</li>
+  </ul>
+</section>
+
+</main>
+
+<footer class="bottom">
+  <span>Context Budget Planner. MIT licensed. Runs entirely in your browser.</span>
+  <nav>
+    <a href="https://elitesystem.ai" rel="noopener">An elitesystem.ai tool</a>
+    <a href="https://github.com/0xelitesystem/context-budget-planner" rel="noopener">Source on GitHub</a>
+    <a href="https://0xelitesystem.github.io/" rel="noopener">More tools</a>
+  </nav>
+</footer>
+
+</div>
+
+<script>
+/* =====================================================================
+   Context Budget Planner
+   Single file, no external dependencies, nothing leaves the browser.
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   PURE CORE - no document, no window, no side effects.
+   Every function below takes input and returns a result object.
+   --------------------------------------------------------------------- */
+
+function toFiniteNumber(value, fallback) {
+  var n;
+  if (typeof value === 'number') {
+    n = value;
+  } else if (typeof value === 'string') {
+    n = parseFloat(value);
+  } else {
+    return fallback;
+  }
+  if (!isFinite(n)) return fallback;
+  return n;
+}
+
+function formatInt(value) {
+  var n = toFiniteNumber(value, 0);
+  var negative = n < 0;
+  var abs = Math.round(Math.abs(n));
+  var digits = String(abs);
+  if (!/^[0-9]+$/.test(digits)) {
+    /* Values at or above 1e21 stringify in exponential notation ("1e+21"),
+       which the grouping loop below would mangle into nonsense like "1e,+21".
+       Expand them exactly instead. */
+    if (typeof BigInt === 'function') {
+      try { digits = BigInt(abs).toString(); } catch (err) { /* fall through */ }
+    }
+    if (!/^[0-9]+$/.test(digits)) {
+      /* Cannot expand it safely: return it ungrouped rather than wrong. */
+      return (negative ? '-' : '') + digits;
+    }
+  }
+  var out = '';
+  var group = 0;
+  for (var i = digits.length - 1; i >= 0; i--) {
+    out = digits.charAt(i) + out;
+    group++;
+    if (group % 3 === 0 && i > 0) out = ',' + out;
+  }
+  return (negative ? '-' : '') + out;
+}
+
+function formatPercent(value) {
+  var n = toFiniteNumber(value, 0);
+  if (n > 0 && n < 0.1) return 'under 0.1%';
+  if (n >= 100) return String(Math.round(n)) + '%';
+  if (n >= 10) return n.toFixed(1) + '%';
+  return n.toFixed(1) + '%';
+}
+
+function escapeHtml(value) {
+  var s = (value === null || value === undefined) ? '' : String(value);
+  return s.replace(/[&<>"'`=\/]/g, function (ch) {
+    if (ch === '&') return '&amp;';
+    if (ch === '<') return '&lt;';
+    if (ch === '>') return '&gt;';
+    if (ch === '"') return '&quot;';
+    if (ch === "'") return '&#39;';
+    if (ch === '`') return '&#96;';
+    if (ch === '=') return '&#61;';
+    if (ch === '/') return '&#47;';
+    return ch;
+  });
+}
+
+/* The set of roles a line item can take. Object.create(null) so a role
+   literally named "constructor" or "__proto__" cannot change behaviour. */
+function makeKindTable() {
+  var t = Object.create(null);
+  t.system = 'System prompt';
+  t.tools = 'Tool definitions';
+  t.history = 'Conversation history';
+  t.retrieval = 'Retrieved chunks (RAG)';
+  t.fewshot = 'Few-shot examples';
+  t.scratchpad = 'Scratchpad or memory';
+  t.output = 'Reserved output';
+  t.other = 'Other';
+  return t;
+}
+
+function kindLabel(kind) {
+  var table = makeKindTable();
+  if (typeof kind === 'string' && Object.prototype.hasOwnProperty.call(table, kind)) {
+    return table[kind];
+  }
+  return 'Other';
+}
+
+function isKnownKind(kind) {
+  var table = makeKindTable();
+  return typeof kind === 'string' && Object.prototype.hasOwnProperty.call(table, kind);
+}
+
+function isKnownMode(mode) {
+  return mode === 'text' || mode === 'tokens' || mode === 'units';
+}
+
+/* Character-based token estimate. This is a heuristic, not a tokenizer. */
+function estimateTokensFromText(text, charsPerToken) {
+  var s = (typeof text === 'string') ? text : '';
+  var cpt = toFiniteNumber(charsPerToken, 4);
+  if (cpt <= 0) cpt = 4;
+  var chars = s.length;
+  return {
+    chars: chars,
+    charsPerToken: cpt,
+    tokens: chars === 0 ? 0 : Math.ceil(chars / cpt),
+    estimate: true
+  };
+}
+
+/* Size one line item, whichever of the three ways it is measured. */
+function computeItemTokens(item, charsPerToken) {
+  var src = item || {};
+  var mode = isKnownMode(src.mode) ? src.mode : 'tokens';
+
+  if (mode === 'text') {
+    var est = estimateTokensFromText(src.text, charsPerToken);
+    return {
+      tokens: est.tokens,
+      estimated: true,
+      math: formatInt(est.chars) + ' chars / ' + est.charsPerToken +
+            ' chars per token = ' + formatInt(est.tokens) + ' tokens (estimate)'
+    };
+  }
+
+  if (mode === 'units') {
+    var units = Math.max(0, Math.round(toFiniteNumber(src.units, 0)));
+    var per = Math.max(0, Math.round(toFiniteNumber(src.perUnit, 0)));
+    var total = units * per;
+    return {
+      tokens: total,
+      estimated: false,
+      math: formatInt(units) + ' x ' + formatInt(per) + ' tokens each = ' +
+            formatInt(total) + ' tokens'
+    };
+  }
+
+  var direct = Math.max(0, Math.round(toFiniteNumber(src.tokens, 0)));
+  return {
+    tokens: direct,
+    estimated: false,
+    math: formatInt(direct) + ' tokens (entered directly)'
+  };
+}
+
+/* How many more exchanges fit before the window is exhausted. */
+function computeTurnsUntilOverflow(total, limit, avgTokensPerTurn) {
+  var t = Math.max(0, Math.round(toFiniteNumber(total, 0)));
+  var lim = Math.round(toFiniteNumber(limit, 0));
+  var avg = Math.round(toFiniteNumber(avgTokensPerTurn, 0));
+  var room = lim - t;
+
+  if (lim <= 0) {
+    return { turns: null, room: 0, avg: avg, note: 'Set a context limit above zero to project turns.' };
+  }
+  if (avg <= 0) {
+    return { turns: null, room: room, avg: avg, note: 'Set an average tokens per turn above zero to project turns.' };
+  }
+  if (room <= 0) {
+    return { turns: 0, room: room, avg: avg, note: 'The plan is already over the limit, so no further turns fit.' };
+  }
+  var turns = Math.floor(room / avg);
+  return {
+    turns: turns,
+    room: room,
+    avg: avg,
+    note: formatInt(room) + ' tokens of headroom / ' + formatInt(avg) +
+          ' tokens per turn = ' + formatInt(turns) + ' more turns'
+  };
+}
+
+/* Which items to cut to get back under the limit. */
+function suggestCuts(items, overBy) {
+  var over = Math.max(0, Math.round(toFiniteNumber(overBy, 0)));
+  var out = { overBy: over, singleItem: null, combination: [], covered: false, perItem: [] };
+  if (over <= 0) return out;
+
+  var list = Array.isArray(items) ? items : [];
+  var consumers = [];
+  for (var i = 0; i < list.length; i++) {
+    var it = list[i] || {};
+    if (it.kind !== 'output' && toFiniteNumber(it.tokens, 0) > 0) {
+      consumers.push({ name: String(it.name === undefined ? '' : it.name), tokens: Math.round(toFiniteNumber(it.tokens, 0)) });
+    }
+  }
+  if (consumers.length === 0) return out;
+
+  var ascending = consumers.slice().sort(function (a, b) { return a.tokens - b.tokens; });
+  for (var j = 0; j < ascending.length; j++) {
+    if (ascending[j].tokens >= over) {
+      out.singleItem = { name: ascending[j].name, tokens: ascending[j].tokens, trimBy: over };
+      break;
+    }
+  }
+
+  var descending = consumers.slice().sort(function (a, b) { return b.tokens - a.tokens; });
+  var accumulated = 0;
+  for (var k = 0; k < descending.length && accumulated < over; k++) {
+    out.combination.push({ name: descending[k].name, tokens: descending[k].tokens });
+    accumulated += descending[k].tokens;
+  }
+  out.covered = accumulated >= over;
+
+  for (var m = 0; m < consumers.length; m++) {
+    out.perItem.push({
+      name: consumers[m].name,
+      tokens: consumers[m].tokens,
+      trimBy: over,
+      possible: consumers[m].tokens >= over
+    });
+  }
+  return out;
+}
+
+/* The whole plan. Takes a plain plan object, returns a result object. */
+function computePlan(plan) {
+  var p = plan || {};
+  var limit = Math.round(toFiniteNumber(p.limit, 0));
+  var cpt = toFiniteNumber(p.charsPerToken, 4);
+  if (cpt <= 0) cpt = 4;
+
+  var expected = Math.max(0, Math.round(toFiniteNumber(p.expectedResponseTokens, 0)));
+  var toolResult = Math.max(0, Math.round(toFiniteNumber(p.typicalToolResultTokens, 0)));
+  var avgTurn = Math.max(0, Math.round(toFiniteNumber(p.avgTokensPerTurn, 0)));
+  var toolPct = Math.max(0, toFiniteNumber(p.toolShareWarnPct, 10));
+
+  var rawItems = Array.isArray(p.items) ? p.items : [];
+  var items = [];
+  var byKind = Object.create(null);
+  var consumerTokens = 0;
+  var reserveTokens = 0;
+  var anyEstimated = false;
+
+  for (var i = 0; i < rawItems.length; i++) {
+    var src = rawItems[i] || {};
+    var calc = computeItemTokens(src, cpt);
+    var kind = isKnownKind(src.kind) ? src.kind : 'other';
+    var name = (typeof src.name === 'string' && src.name.trim().length > 0) ? src.name.trim() : 'Untitled item';
+
+    if (calc.estimated) anyEstimated = true;
+    if (kind === 'output') {
+      reserveTokens += calc.tokens;
+    } else {
+      consumerTokens += calc.tokens;
+    }
+
+    var prior = Object.prototype.hasOwnProperty.call(byKind, kind) ? byKind[kind] : 0;
+    byKind[kind] = prior + calc.tokens;
+
+    items.push({
+      id: (typeof src.id === 'string' || typeof src.id === 'number') ? String(src.id) : ('item-' + i),
+      name: name,
+      kind: kind,
+      kindLabel: kindLabel(kind),
+      mode: isKnownMode(src.mode) ? src.mode : 'tokens',
+      tokens: calc.tokens,
+      math: calc.math,
+      estimated: calc.estimated,
+      sharePct: limit > 0 ? (calc.tokens / limit) * 100 : 0
+    });
+  }
+
+  var total = consumerTokens + reserveTokens;
+  var remaining = limit - total;
+  var over = limit > 0 && total > limit;
+  var overBy = over ? (total - limit) : 0;
+  var headroom = remaining > 0 ? remaining : 0;
+
+  var retrievalTokens = Object.prototype.hasOwnProperty.call(byKind, 'retrieval') ? byKind.retrieval : 0;
+  var toolTokens = Object.prototype.hasOwnProperty.call(byKind, 'tools') ? byKind.tools : 0;
+
+  var turns = computeTurnsUntilOverflow(total, limit, avgTurn);
+  var cuts = suggestCuts(items, overBy);
+
+  var warnings = [];
+  function addCheck(level, title, detail) {
+    warnings.push({ level: level, title: title, detail: detail });
+  }
+
+  if (limit <= 0) {
+    addCheck('error', 'No context limit set',
+      'Enter a context window size above zero. Every check below is measured against it.');
+  }
+
+  if (items.length === 0) {
+    addCheck('info', 'Nothing allocated yet',
+      'Add line items for the system prompt, tool definitions, history, retrieval, and a reserved output block.');
+  }
+
+  if (over) {
+    var cutLine = '';
+    if (cuts.singleItem) {
+      cutLine = ' The smallest single item that can absorb it on its own is "' + cuts.singleItem.name +
+                '" at ' + formatInt(cuts.singleItem.tokens) + ' tokens; trim it by ' + formatInt(overBy) + '.';
+    } else if (cuts.combination.length > 0 && cuts.covered) {
+      var names = [];
+      for (var c = 0; c < cuts.combination.length; c++) names.push('"' + cuts.combination[c].name + '"');
+      cutLine = ' No single item is large enough, so trim across ' + names.join(' and ') + '.';
+    }
+    addCheck('error', 'Over the limit by ' + formatInt(overBy) + ' tokens',
+      'The plan totals ' + formatInt(total) + ' tokens against a ' + formatInt(limit) +
+      ' token window.' + cutLine);
+  }
+
+  if (reserveTokens === 0) {
+    addCheck('error', 'No output reserve',
+      'Nothing is set aside for the model\'s reply. Add a line item with the role "Reserved output". ' +
+      'Without it the window fills with input and the answer gets truncated.');
+  } else if (expected > 0 && reserveTokens < expected) {
+    addCheck('warn', 'Output reserve is smaller than the response you asked for',
+      'You reserved ' + formatInt(reserveTokens) + ' tokens but expect a ' + formatInt(expected) +
+      ' token response. That is ' + formatInt(expected - reserveTokens) + ' tokens short.');
+  }
+
+  if (limit > 0 && retrievalTokens > limit / 2) {
+    addCheck('warn', 'Retrieval alone consumes more than half the window',
+      'Retrieved chunks total ' + formatInt(retrievalTokens) + ' tokens, ' +
+      formatPercent((retrievalTokens / limit) * 100) + ' of the window. ' +
+      'Fewer chunks, smaller chunks, or a reranker before the model usually beats a bigger window.');
+  }
+
+  if (limit > 0 && toolPct > 0 && toolTokens > (limit * toolPct) / 100) {
+    addCheck('warn', 'Tool definitions have grown past your threshold',
+      'Tool schemas total ' + formatInt(toolTokens) + ' tokens, ' +
+      formatPercent((toolTokens / limit) * 100) + ' of the window, above the ' +
+      formatPercent(toolPct) + ' threshold you set. That threshold is a rule of thumb you can change, not a standard. ' +
+      'Trimming descriptions or loading tools on demand is the usual fix.');
+  }
+
+  if (!over && limit > 0 && toolResult > 0) {
+    if (headroom < toolResult) {
+      addCheck('warn', 'Fits now, but not with one more tool result',
+        'Headroom is ' + formatInt(headroom) + ' tokens and a typical tool result is ' +
+        formatInt(toolResult) + '. The next tool call pushes this over.');
+    }
+  }
+
+  if (limit > 0 && avgTurn > 0) {
+    if (over) {
+      addCheck('error', 'History cannot grow at all',
+        'The plan is already over the limit, so there is no room for another turn.');
+    } else if (turns.turns === 0) {
+      addCheck('error', 'History overflows on the very next turn',
+        'Headroom is ' + formatInt(headroom) + ' tokens and an average turn adds ' +
+        formatInt(avgTurn) + '. Zero more exchanges fit.');
+    } else if (turns.turns !== null && turns.turns <= 3) {
+      addCheck('warn', 'History overflows after ' + formatInt(turns.turns) + ' more turns',
+        turns.note + '. Plan for compaction, truncation, or summarisation before then.');
+    } else if (turns.turns !== null) {
+      addCheck('info', 'History overflows after ' + formatInt(turns.turns) + ' more turns',
+        turns.note + '.');
+    }
+  }
+
+  if (anyEstimated) {
+    addCheck('info', 'Some items are character-based estimates',
+      'Items sized by pasted text use ' + cpt + ' characters per token. That is a heuristic, not a tokenizer, ' +
+      'and it drifts on code, JSON, and non-Latin scripts.');
+  }
+
+  if (!over && limit > 0 && items.length > 0 && reserveTokens > 0) {
+    addCheck('ok', 'Plan fits',
+      formatInt(total) + ' of ' + formatInt(limit) + ' tokens allocated, ' +
+      formatInt(headroom) + ' tokens of headroom (' + formatPercent((headroom / limit) * 100) + ').');
+  }
+
+  var status = 'empty';
+  if (limit > 0 && items.length > 0) {
+    if (over) status = 'over';
+    else if (toolResult > 0 && headroom < toolResult) status = 'tight';
+    else status = 'ok';
+  }
+
+  return {
+    limit: limit,
+    charsPerToken: cpt,
+    items: items,
+    byKind: byKind,
+    consumerTokens: consumerTokens,
+    reserveTokens: reserveTokens,
+    total: total,
+    remaining: remaining,
+    headroom: headroom,
+    over: over,
+    overBy: overBy,
+    anyEstimated: anyEstimated,
+    assumptions: {
+      expectedResponseTokens: expected,
+      typicalToolResultTokens: toolResult,
+      avgTokensPerTurn: avgTurn,
+      toolShareWarnPct: toolPct
+    },
+    turns: turns,
+    cuts: cuts,
+    checks: warnings,
+    status: status
+  };
+}
+
+/* Markdown export. Pipes in names are escaped so the table survives. */
+function planToMarkdown(result, meta) {
+  var r = result || {};
+  var m = meta || {};
+  var lines = [];
+  var i;
+
+  function cell(value) {
+    return String(value === undefined || value === null ? '' : value)
+      .replace(/\r?\n/g, ' ')
+      .replace(/\|/g, '\\|');
+  }
+
+  lines.push('# Context budget plan');
+  lines.push('');
+  lines.push('- **Window:** ' + cell(m.modelLabel || 'Custom') + ' (' + formatInt(r.limit) + ' tokens)');
+  lines.push('- **Estimation basis:** ' + r.charsPerToken + ' characters per token (approximate, not a tokenizer)');
+  lines.push('- **Total allocated:** ' + formatInt(r.total) + ' tokens');
+  if (r.over) {
+    lines.push('- **Status:** OVER by ' + formatInt(r.overBy) + ' tokens');
+  } else {
+    lines.push('- **Status:** fits, ' + formatInt(r.headroom) + ' tokens of headroom');
+  }
+  lines.push('');
+  lines.push('## Line items');
+  lines.push('');
+  lines.push('| Line item | Role | How it was sized | Tokens | Share of window |');
+  lines.push('| --- | --- | --- | ---: | ---: |');
+
+  var itemList = Array.isArray(r.items) ? r.items : [];
+  for (i = 0; i < itemList.length; i++) {
+    var it = itemList[i];
+    lines.push('| ' + cell(it.name) + ' | ' + cell(it.kindLabel) + ' | ' + cell(it.math) +
+               ' | ' + formatInt(it.tokens) + ' | ' + formatPercent(it.sharePct) + ' |');
+  }
+  if (itemList.length === 0) {
+    lines.push('| (none) | | | 0 | 0% |');
+  }
+
+  lines.push('');
+  lines.push('## Totals');
+  lines.push('');
+  lines.push('- Consumed by input: ' + formatInt(r.consumerTokens) + ' tokens');
+  lines.push('- Reserved for output: ' + formatInt(r.reserveTokens) + ' tokens');
+  lines.push('- Total: ' + formatInt(r.total) + ' of ' + formatInt(r.limit) + ' tokens');
+  if (r.over) {
+    lines.push('- Over by: ' + formatInt(r.overBy) + ' tokens');
+  } else {
+    lines.push('- Headroom: ' + formatInt(r.headroom) + ' tokens');
+  }
+
+  lines.push('');
+  lines.push('## Turns until overflow');
+  lines.push('');
+  if (r.turns && r.turns.turns !== null && r.turns.turns !== undefined) {
+    lines.push('- ' + formatInt(r.turns.turns) + ' more turns at ' + formatInt(r.turns.avg) + ' tokens per turn');
+    lines.push('- ' + cell(r.turns.note));
+  } else {
+    lines.push('- ' + cell(r.turns ? r.turns.note : 'Not projected.'));
+  }
+
+  if (r.over && r.cuts) {
+    lines.push('');
+    lines.push('## To fit');
+    lines.push('');
+    if (r.cuts.singleItem) {
+      lines.push('- Trim "' + cell(r.cuts.singleItem.name) + '" by ' + formatInt(r.cuts.overBy) + ' tokens.');
+    }
+    var combo = Array.isArray(r.cuts.combination) ? r.cuts.combination : [];
+    if (combo.length > 0) {
+      var names = [];
+      for (i = 0; i < combo.length; i++) names.push('"' + cell(combo[i].name) + '" (' + formatInt(combo[i].tokens) + ')');
+      lines.push('- Largest consumers: ' + names.join(', ') + '.');
+    }
+  }
+
+  var checks = Array.isArray(r.checks) ? r.checks : [];
+  if (checks.length > 0) {
+    lines.push('');
+    lines.push('## Checks');
+    lines.push('');
+    for (i = 0; i < checks.length; i++) {
+      lines.push('- **[' + checks[i].level.toUpperCase() + ']** ' + cell(checks[i].title) + ' - ' + cell(checks[i].detail));
+    }
+  }
+
+  lines.push('');
+  lines.push('## Assumptions');
+  lines.push('');
+  var a = r.assumptions || {};
+  lines.push('- Expected response: ' + formatInt(a.expectedResponseTokens) + ' tokens');
+  lines.push('- Typical tool result: ' + formatInt(a.typicalToolResultTokens) + ' tokens');
+  lines.push('- Average tokens per turn: ' + formatInt(a.avgTokensPerTurn));
+  lines.push('- Tool definition warning threshold: ' + formatPercent(a.toolShareWarnPct) + ' of the window');
+  lines.push('');
+  lines.push('Generated with Context Budget Planner (https://0xelitesystem.github.io/context-budget-planner/). ' +
+             'Token counts from pasted text are character-based estimates, not tokenizer output. ' +
+             'Context limits are user-editable and are not authoritative.');
+
+  return lines.join('\n');
+}
+
+/* JSON export. */
+function planToJson(result, meta) {
+  var r = result || {};
+  var m = meta || {};
+  var itemList = Array.isArray(r.items) ? r.items : [];
+  var out = {
+    tool: 'context-budget-planner',
+    url: 'https://0xelitesystem.github.io/context-budget-planner/',
+    disclaimer: 'Token counts from pasted text are character-based estimates, not tokenizer output. Context limits are user-editable and not authoritative.',
+    window: {
+      label: m.modelLabel || 'Custom',
+      limitTokens: r.limit,
+      charsPerToken: r.charsPerToken
+    },
+    assumptions: r.assumptions || {},
+    items: [],
+    totals: {
+      consumerTokens: r.consumerTokens,
+      reserveTokens: r.reserveTokens,
+      totalTokens: r.total,
+      headroomTokens: r.headroom,
+      over: !!r.over,
+      overByTokens: r.overBy
+    },
+    turnsUntilOverflow: r.turns || null,
+    cuts: r.over ? (r.cuts || null) : null,
+    checks: Array.isArray(r.checks) ? r.checks : []
+  };
+  for (var i = 0; i < itemList.length; i++) {
+    out.items.push({
+      name: itemList[i].name,
+      role: itemList[i].kind,
+      roleLabel: itemList[i].kindLabel,
+      sizedBy: itemList[i].mode,
+      arithmetic: itemList[i].math,
+      tokens: itemList[i].tokens,
+      estimated: itemList[i].estimated,
+      shareOfWindowPercent: Math.round(itemList[i].sharePct * 100) / 100
+    });
+  }
+  return JSON.stringify(out, null, 2);
+}
+
+/* Defensive rehydration of anything read back from storage. */
+function sanitizePlan(raw, fallback) {
+  var base = fallback || {};
+  if (!raw || typeof raw !== 'object') return base;
+
+  var out = {
+    modelKey: (typeof raw.modelKey === 'string') ? raw.modelKey.slice(0, 64) : (base.modelKey || 'custom'),
+    limit: Math.max(0, Math.round(toFiniteNumber(raw.limit, base.limit || 0))),
+    charsPerToken: toFiniteNumber(raw.charsPerToken, base.charsPerToken || 4),
+    expectedResponseTokens: Math.max(0, Math.round(toFiniteNumber(raw.expectedResponseTokens, base.expectedResponseTokens || 0))),
+    typicalToolResultTokens: Math.max(0, Math.round(toFiniteNumber(raw.typicalToolResultTokens, base.typicalToolResultTokens || 0))),
+    avgTokensPerTurn: Math.max(0, Math.round(toFiniteNumber(raw.avgTokensPerTurn, base.avgTokensPerTurn || 0))),
+    toolShareWarnPct: Math.max(0, Math.min(100, toFiniteNumber(raw.toolShareWarnPct, base.toolShareWarnPct || 10))),
+    items: []
+  };
+  if (out.charsPerToken <= 0) out.charsPerToken = 4;
+
+  var rawItems = Array.isArray(raw.items) ? raw.items : [];
+  var cap = Math.min(rawItems.length, 200);
+  for (var i = 0; i < cap; i++) {
+    var s = rawItems[i];
+    if (!s || typeof s !== 'object') continue;
+    out.items.push({
+      id: 'item-' + i + '-' + Math.random().toString(36).slice(2, 8),
+      name: (typeof s.name === 'string') ? s.name.slice(0, 200) : 'Untitled item',
+      kind: isKnownKind(s.kind) ? s.kind : 'other',
+      mode: isKnownMode(s.mode) ? s.mode : 'tokens',
+      text: (typeof s.text === 'string') ? s.text.slice(0, 400000) : '',
+      tokens: Math.max(0, Math.round(toFiniteNumber(s.tokens, 0))),
+      units: Math.max(0, Math.round(toFiniteNumber(s.units, 0))),
+      perUnit: Math.max(0, Math.round(toFiniteNumber(s.perUnit, 0)))
+    });
+  }
+  return out;
+}
+
+/* ---------------------------------------------------------------------
+   PRESETS AND SAMPLE DATA
+   --------------------------------------------------------------------- */
+
+var MODEL_PRESETS = [
+  { key: 'custom', group: '', label: 'Custom (type your own limit)', limit: null },
+  { key: 'claude-opus-5', group: 'Anthropic Claude', label: 'Claude Opus 5', limit: 1000000 },
+  { key: 'claude-sonnet-5', group: 'Anthropic Claude', label: 'Claude Sonnet 5', limit: 1000000 },
+  { key: 'claude-opus-4-8', group: 'Anthropic Claude', label: 'Claude Opus 4.8', limit: 1000000 },
+  { key: 'claude-sonnet-4-6', group: 'Anthropic Claude', label: 'Claude Sonnet 4.6', limit: 1000000 },
+  { key: 'claude-haiku-4-5', group: 'Anthropic Claude', label: 'Claude Haiku 4.5', limit: 200000 },
+  { key: 'gpt-4o', group: 'OpenAI', label: 'GPT-4o', limit: 128000 },
+  { key: 'gpt-4-turbo', group: 'OpenAI', label: 'GPT-4 Turbo', limit: 128000 },
+  { key: 'generic-8k', group: 'Generic window sizes', label: '8k window', limit: 8000 },
+  { key: 'generic-32k', group: 'Generic window sizes', label: '32k window', limit: 32000 },
+  { key: 'generic-128k', group: 'Generic window sizes', label: '128k window', limit: 128000 },
+  { key: 'generic-200k', group: 'Generic window sizes', label: '200k window', limit: 200000 },
+  { key: 'generic-1m', group: 'Generic window sizes', label: '1M window', limit: 1000000 }
+];
+
+var SAMPLE_SYSTEM_PROMPT =
+'You are a support engineering agent for a B2B SaaS product. You answer questions about billing, provisioning, SSO, and API errors.\n' +
+'\n' +
+'Rules:\n' +
+'1. Check the retrieved documentation before answering. If the retrieved chunks do not cover the question, say so and offer to open a ticket.\n' +
+'2. Never invent an account ID, invoice number, or error code. Quote them only if they appear in the conversation or in a tool result.\n' +
+'3. When a customer reports an outage, call check_status first, then summarise in two sentences before offering next steps.\n' +
+'4. Refunds above 500 dollars require a human approver. Call request_approval and stop; do not promise the refund.\n' +
+'5. Keep answers under 200 words unless the customer asks for a walkthrough.\n' +
+'6. Use plain language. No marketing copy, and no apology longer than one sentence.\n' +
+'\n' +
+'Tools are expensive. Prefer one well-formed call over three exploratory ones. If two tools could answer the question, pick the cheaper one and say why in your scratchpad.\n' +
+'\n' +
+'When you are unsure, say what you would need in order to be sure. Do not guess at pricing, contract terms, or data residency commitments; route those to the account team.\n' +
+'\n' +
+'At the end of every resolved conversation, write a two-line summary to memory: what the customer asked, and what you did.';
+
+function makeSamplePlan() {
+  return {
+    modelKey: 'generic-32k',
+    limit: 32000,
+    charsPerToken: 4,
+    expectedResponseTokens: 1500,
+    typicalToolResultTokens: 800,
+    avgTokensPerTurn: 600,
+    toolShareWarnPct: 10,
+    items: [
+      { name: 'System prompt', kind: 'system', mode: 'text', text: SAMPLE_SYSTEM_PROMPT, tokens: 0, units: 0, perUnit: 0 },
+      { name: 'Tool definitions', kind: 'tools', mode: 'units', text: '', tokens: 0, units: 9, perUnit: 420 },
+      { name: 'Few-shot examples', kind: 'fewshot', mode: 'units', text: '', tokens: 0, units: 4, perUnit: 320 },
+      { name: 'Retrieved chunks (RAG)', kind: 'retrieval', mode: 'units', text: '', tokens: 0, units: 12, perUnit: 400 },
+      { name: 'Conversation history', kind: 'history', mode: 'tokens', text: '', tokens: 20000, units: 0, perUnit: 0 },
+      { name: 'Scratchpad and memory', kind: 'scratchpad', mode: 'tokens', text: '', tokens: 1200, units: 0, perUnit: 0 },
+      { name: 'Reserved output', kind: 'output', mode: 'tokens', text: '', tokens: 4000, units: 0, perUnit: 0 }
+    ]
+  };
+}
+
+function makeStarterPlan() {
+  return {
+    modelKey: 'generic-128k',
+    limit: 128000,
+    charsPerToken: 4,
+    expectedResponseTokens: 1500,
+    typicalToolResultTokens: 800,
+    avgTokensPerTurn: 600,
+    toolShareWarnPct: 10,
+    items: []
+  };
+}
+
+/* ---------------------------------------------------------------------
+   DOM LAYER
+   --------------------------------------------------------------------- */
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'cbp.plan.v1';
+  var THEME_KEY = 'cbp.theme';
+
+  var idCounter = 0;
+  function nextId() {
+    idCounter++;
+    return 'li-' + idCounter;
+  }
+
+  function segColorVar(kind) {
+    var table = Object.create(null);
+    table.system = '--seg-system';
+    table.tools = '--seg-tools';
+    table.history = '--seg-history';
+    table.retrieval = '--seg-retrieval';
+    table.fewshot = '--seg-fewshot';
+    table.scratchpad = '--seg-scratchpad';
+    table.output = '--seg-output';
+    table.other = '--seg-other';
+    if (typeof kind === 'string' && Object.prototype.hasOwnProperty.call(table, kind)) {
+      return table[kind];
+    }
+    return '--seg-other';
+  }
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var els = {
+    modelSelect: $('model-select'),
+    limitInput: $('limit-input'),
+    cptInput: $('cpt-input'),
+    expectedInput: $('expected-input'),
+    toolResultInput: $('toolresult-input'),
+    avgTurnInput: $('avgturn-input'),
+    toolPctInput: $('toolpct-input'),
+    itemsList: $('items-list'),
+    itemsEmpty: $('items-empty'),
+    statusLine: $('status-line'),
+    statusMain: $('status-main'),
+    statusSub: $('status-sub'),
+    barTrack: $('bar-track'),
+    limitMark: $('limit-mark'),
+    scaleLimit: $('scale-limit'),
+    legend: $('legend'),
+    totals: $('totals'),
+    overflowBox: $('overflow-box'),
+    checks: $('checks'),
+    turnFigure: $('turn-figure'),
+    turnNote: $('turn-note'),
+    outMd: $('out-md'),
+    outJson: $('out-json'),
+    themeBtn: $('btn-theme')
+  };
+
+  var state = makeStarterPlan();
+  var saveTimer = null;
+
+  /* ---------- storage ---------- */
+
+  function loadState() {
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      var parsed = JSON.parse(raw);
+      return sanitizePlan(parsed, makeStarterPlan());
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function saveState() {
+    if (saveTimer) window.clearTimeout(saveTimer);
+    saveTimer = window.setTimeout(function () {
+      try {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) { /* quota or blocked storage: keep working in memory */ }
+    }, 250);
+  }
+
+  /* ---------- theme ---------- */
+
+  function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
+
+  function applyTheme(theme) {
+    if (theme === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    els.themeBtn.textContent = theme === 'light' ? 'Dark theme' : 'Light theme';
+    els.themeBtn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+    els.themeBtn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+  }
+
+  function initTheme() {
+    var stored = null;
+    try { stored = window.localStorage.getItem(THEME_KEY); } catch (err) { stored = null; }
+    applyTheme(stored === 'light' ? 'light' : 'dark');
+  }
+
+  els.themeBtn.addEventListener('click', function () {
+    var next = currentTheme() === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    try { window.localStorage.setItem(THEME_KEY, next); } catch (err) { /* ignore */ }
+    render();
+  });
+
+  /* ---------- small DOM helpers ---------- */
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
+  }
+
+  function clear(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+
+  function labelled(labelText, control, id) {
+    var wrap = el('div', 'field');
+    var lab = el('label', null, labelText);
+    lab.setAttribute('for', id);
+    control.id = id;
+    wrap.appendChild(lab);
+    wrap.appendChild(control);
+    return wrap;
+  }
+
+  /* ---------- model select ---------- */
+
+  function buildModelSelect() {
+    clear(els.modelSelect);
+    var groups = Object.create(null);
+    var order = [];
+    var i;
+    for (i = 0; i < MODEL_PRESETS.length; i++) {
+      var g = MODEL_PRESETS[i].group || '';
+      if (!Object.prototype.hasOwnProperty.call(groups, g)) {
+        groups[g] = [];
+        order.push(g);
+      }
+      groups[g].push(MODEL_PRESETS[i]);
+    }
+    for (i = 0; i < order.length; i++) {
+      var name = order[i];
+      var list = groups[name];
+      var parent = els.modelSelect;
+      if (name) {
+        var og = document.createElement('optgroup');
+        og.label = name;
+        els.modelSelect.appendChild(og);
+        parent = og;
+      }
+      for (var j = 0; j < list.length; j++) {
+        var opt = el('option', null, list[j].label);
+        opt.value = list[j].key;
+        parent.appendChild(opt);
+      }
+    }
+  }
+
+  function findPreset(key) {
+    for (var i = 0; i < MODEL_PRESETS.length; i++) {
+      if (MODEL_PRESETS[i].key === key) return MODEL_PRESETS[i];
+    }
+    return null;
+  }
+
+  function currentModelLabel() {
+    var p = findPreset(state.modelKey);
+    if (!p || p.limit === null) return 'Custom';
+    if (p.limit !== state.limit) return p.label + ' (limit edited)';
+    return p.label;
+  }
+
+  /* ---------- item rows ---------- */
+
+  function findItem(id) {
+    for (var i = 0; i < state.items.length; i++) {
+      if (state.items[i].id === id) return state.items[i];
+    }
+    return null;
+  }
+
+  function buildKindSelect(value) {
+    var sel = document.createElement('select');
+    var kinds = ['system', 'tools', 'history', 'retrieval', 'fewshot', 'scratchpad', 'other', 'output'];
+    for (var i = 0; i < kinds.length; i++) {
+      var opt = el('option', null, kindLabel(kinds[i]));
+      opt.value = kinds[i];
+      if (kinds[i] === value) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    return sel;
+  }
+
+  function buildModeSelect(value) {
+    var sel = document.createElement('select');
+    var modes = [
+      { v: 'text', l: 'Paste text (estimated)' },
+      { v: 'tokens', l: 'Token count' },
+      { v: 'units', l: 'Units x size each' }
+    ];
+    for (var i = 0; i < modes.length; i++) {
+      var opt = el('option', null, modes[i].l);
+      opt.value = modes[i].v;
+      if (modes[i].v === value) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    return sel;
+  }
+
+  function numberInput(value, min, step) {
+    var inp = document.createElement('input');
+    inp.type = 'number';
+    inp.min = String(min);
+    inp.step = String(step);
+    inp.inputMode = 'numeric';
+    inp.value = String(value);
+    return inp;
+  }
+
+  function renderItems() {
+    clear(els.itemsList);
+    els.itemsEmpty.hidden = state.items.length > 0;
+
+    for (var i = 0; i < state.items.length; i++) {
+      (function (item) {
+        var li = el('li', 'item');
+        li.style.borderLeftColor = 'var(' + segColorVar(item.kind) + ')';
+        li.setAttribute('data-id', item.id);
+
+        var head = el('div', 'item-head');
+
+        var nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = item.name;
+        nameInput.maxLength = 200;
+        var nameField = labelled('Name', nameInput, item.id + '-name');
+        nameField.className = 'field f-name';
+        nameField.style.marginBottom = '0';
+        head.appendChild(nameField);
+
+        var kindSel = buildKindSelect(item.kind);
+        var kindField = labelled('Role', kindSel, item.id + '-kind');
+        kindField.className = 'field f-kind';
+        kindField.style.marginBottom = '0';
+        head.appendChild(kindField);
+
+        var modeSel = buildModeSelect(item.mode);
+        var modeField = labelled('Sized by', modeSel, item.id + '-mode');
+        modeField.className = 'field f-mode';
+        modeField.style.marginBottom = '0';
+        head.appendChild(modeField);
+
+        var delWrap = el('div', 'field f-del');
+        delWrap.style.marginBottom = '0';
+        var delBtn = el('button', 'tiny ghost', 'Remove');
+        delBtn.type = 'button';
+        delBtn.setAttribute('aria-label', 'Remove line item');
+        delWrap.appendChild(delBtn);
+        head.appendChild(delWrap);
+
+        li.appendChild(head);
+
+        var body = el('div', 'item-body');
+
+        /* text mode */
+        var textGroup = el('div', 'mode-group');
+        var ta = document.createElement('textarea');
+        ta.value = item.text;
+        ta.spellcheck = false;
+        ta.placeholder = 'Paste the actual text for this part of the context.';
+        var textField = labelled('Text', ta, item.id + '-text');
+        textField.style.marginBottom = '0';
+        textGroup.appendChild(textField);
+        body.appendChild(textGroup);
+
+        /* token mode */
+        var tokGroup = el('div', 'mode-group');
+        var tokInput = numberInput(item.tokens, 0, 100);
+        var tokField = labelled('Tokens', tokInput, item.id + '-tokens');
+        tokField.style.marginBottom = '0';
+        tokGroup.appendChild(tokField);
+        body.appendChild(tokGroup);
+
+        /* units mode */
+        var unitGroup = el('div', 'mode-group');
+        var unitRow = el('div', 'units-row');
+        var unitsInput = numberInput(item.units, 0, 1);
+        var unitsField = labelled('How many', unitsInput, item.id + '-units');
+        unitsField.style.marginBottom = '0';
+        unitRow.appendChild(unitsField);
+        unitRow.appendChild(el('div', 'times', 'x'));
+        var perInput = numberInput(item.perUnit, 0, 10);
+        var perField = labelled('Tokens each', perInput, item.id + '-per');
+        perField.style.marginBottom = '0';
+        unitRow.appendChild(perField);
+        unitGroup.appendChild(unitRow);
+        body.appendChild(unitGroup);
+
+        li.appendChild(body);
+
+        var out = el('div', 'item-out');
+        var math = el('span', 'math', '');
+        var amount = el('span', 'amount', '');
+        out.appendChild(math);
+        out.appendChild(amount);
+        li.appendChild(out);
+
+        function syncModeVisibility() {
+          textGroup.hidden = item.mode !== 'text';
+          tokGroup.hidden = item.mode !== 'tokens';
+          unitGroup.hidden = item.mode !== 'units';
+        }
+        syncModeVisibility();
+
+        nameInput.addEventListener('input', function () {
+          item.name = nameInput.value;
+          recompute();
+        });
+        kindSel.addEventListener('change', function () {
+          item.kind = isKnownKind(kindSel.value) ? kindSel.value : 'other';
+          li.style.borderLeftColor = 'var(' + segColorVar(item.kind) + ')';
+          recompute();
+        });
+        modeSel.addEventListener('change', function () {
+          item.mode = isKnownMode(modeSel.value) ? modeSel.value : 'tokens';
+          syncModeVisibility();
+          recompute();
+        });
+        ta.addEventListener('input', function () {
+          item.text = ta.value;
+          recompute();
+        });
+        tokInput.addEventListener('input', function () {
+          item.tokens = Math.max(0, Math.round(toFiniteNumber(tokInput.value, 0)));
+          recompute();
+        });
+        unitsInput.addEventListener('input', function () {
+          item.units = Math.max(0, Math.round(toFiniteNumber(unitsInput.value, 0)));
+          recompute();
+        });
+        perInput.addEventListener('input', function () {
+          item.perUnit = Math.max(0, Math.round(toFiniteNumber(perInput.value, 0)));
+          recompute();
+        });
+        delBtn.addEventListener('click', function () {
+          var idx = -1;
+          for (var k = 0; k < state.items.length; k++) {
+            if (state.items[k].id === item.id) { idx = k; break; }
+          }
+          if (idx >= 0) state.items.splice(idx, 1);
+          renderItems();
+          recompute();
+        });
+
+        li.__out = { math: math, amount: amount };
+        els.itemsList.appendChild(li);
+      })(state.items[i]);
+    }
+  }
+
+  function updateItemOutputs(result) {
+    var nodes = els.itemsList.children;
+    for (var i = 0; i < nodes.length && i < result.items.length; i++) {
+      var node = nodes[i];
+      var data = result.items[i];
+      if (!node.__out) continue;
+      node.__out.math.textContent = data.math;
+      clear(node.__out.amount);
+      node.__out.amount.appendChild(document.createTextNode(formatInt(data.tokens) + ' tokens'));
+      var share = el('span', 'share', result.limit > 0 ? ('(' + formatPercent(data.sharePct) + ' of window)') : '');
+      node.__out.amount.appendChild(share);
+    }
+  }
+
+  /* ---------- bar ---------- */
+
+  function renderBar(result) {
+    clear(els.barTrack);
+    var scaleMax = Math.max(result.total, result.limit, 1);
+
+    var i;
+    var segments = [];
+    for (i = 0; i < result.items.length; i++) {
+      var it = result.items[i];
+      if (it.tokens <= 0) continue;
+      segments.push({
+        kind: it.kind,
+        name: it.name,
+        tokens: it.tokens,
+        reserve: it.kind === 'output'
+      });
+    }
+
+    /* consumers first, reserve last, so the reserved block sits at the end */
+    var consumers = [];
+    var reserves = [];
+    for (i = 0; i < segments.length; i++) {
+      if (segments[i].reserve) reserves.push(segments[i]);
+      else consumers.push(segments[i]);
+    }
+    var ordered = consumers.concat(reserves);
+
+    for (i = 0; i < ordered.length; i++) {
+      var seg = el('div', 'seg' + (ordered[i].reserve ? ' seg-reserve' : ''));
+      seg.style.width = ((ordered[i].tokens / scaleMax) * 100) + '%';
+      if (!ordered[i].reserve) {
+        seg.style.backgroundColor = 'var(' + segColorVar(ordered[i].kind) + ')';
+      }
+      seg.title = ordered[i].name + ': ' + formatInt(ordered[i].tokens) + ' tokens';
+      els.barTrack.appendChild(seg);
+    }
+
+    if (!result.over && result.headroom > 0) {
+      var head = el('div', 'seg seg-head');
+      head.style.width = ((result.headroom / scaleMax) * 100) + '%';
+      head.title = 'Headroom: ' + formatInt(result.headroom) + ' tokens';
+      els.barTrack.appendChild(head);
+    }
+
+    if (result.limit > 0) {
+      els.limitMark.hidden = false;
+      els.limitMark.style.left = ((result.limit / scaleMax) * 100) + '%';
+      els.limitMark.title = 'Limit: ' + formatInt(result.limit) + ' tokens';
+    } else {
+      els.limitMark.hidden = true;
+    }
+
+    els.barTrack.setAttribute('aria-label',
+      'Context window allocation: ' + formatInt(result.total) + ' of ' + formatInt(result.limit) +
+      ' tokens allocated' + (result.over ? (', over by ' + formatInt(result.overBy)) : (', ' + formatInt(result.headroom) + ' tokens of headroom')));
+
+    els.scaleLimit.textContent = 'limit ' + formatInt(result.limit) +
+      (result.over ? ('  |  scale ' + formatInt(scaleMax)) : '');
+
+    /* legend */
+    clear(els.legend);
+    for (i = 0; i < ordered.length; i++) {
+      var li = el('li');
+      var sw = el('span', 'swatch' + (ordered[i].reserve ? ' reserve' : ''));
+      if (!ordered[i].reserve) sw.style.backgroundColor = 'var(' + segColorVar(ordered[i].kind) + ')';
+      li.appendChild(sw);
+      li.appendChild(document.createTextNode(ordered[i].name + ' '));
+      li.appendChild(el('span', 'n', formatInt(ordered[i].tokens)));
+      els.legend.appendChild(li);
+    }
+    if (!result.over && result.headroom > 0) {
+      var hli = el('li');
+      var hsw = el('span', 'swatch head');
+      hli.appendChild(hsw);
+      hli.appendChild(document.createTextNode('Headroom '));
+      hli.appendChild(el('span', 'n', formatInt(result.headroom)));
+      els.legend.appendChild(hli);
+    }
+    if (result.over) {
+      var oli = el('li');
+      var osw = el('span', 'swatch');
+      osw.style.backgroundColor = 'var(--seg-over)';
+      oli.appendChild(osw);
+      oli.appendChild(document.createTextNode('Over the limit '));
+      oli.appendChild(el('span', 'n', formatInt(result.overBy)));
+      els.legend.appendChild(oli);
+    }
+
+    /* Everything past the limit marker is overflow. Overlay it in red so the
+       overflow is impossible to miss, without hiding which items are stacked
+       underneath it. */
+    if (result.over) {
+      var overlay = el('div', 'seg seg-over');
+      overlay.style.position = 'absolute';
+      overlay.style.right = '0';
+      overlay.style.top = '0';
+      overlay.style.bottom = '0';
+      overlay.style.width = ((result.overBy / scaleMax) * 100) + '%';
+      overlay.style.opacity = '0.85';
+      overlay.title = 'Over the limit by ' + formatInt(result.overBy) + ' tokens';
+      els.barTrack.appendChild(overlay);
+    }
+  }
+
+  /* ---------- status, totals, overflow ---------- */
+
+  function renderStatus(result) {
+    els.statusLine.className = 'status';
+    if (result.status === 'over') {
+      els.statusLine.classList.add('is-over');
+      els.statusMain.textContent = 'Over by ' + formatInt(result.overBy) + ' tokens';
+      els.statusSub.textContent = formatInt(result.total) + ' allocated against a ' + formatInt(result.limit) + ' token window';
+    } else if (result.status === 'tight') {
+      els.statusLine.classList.add('is-warn');
+      els.statusMain.textContent = 'Fits, with ' + formatInt(result.headroom) + ' tokens of headroom';
+      els.statusSub.textContent = 'Not enough for one more typical tool result';
+    } else if (result.status === 'ok') {
+      els.statusLine.classList.add('is-ok');
+      els.statusMain.textContent = 'Fits, with ' + formatInt(result.headroom) + ' tokens of headroom';
+      els.statusSub.textContent = formatInt(result.total) + ' of ' + formatInt(result.limit) + ' tokens allocated (' +
+        formatPercent(result.limit > 0 ? (result.total / result.limit) * 100 : 0) + ')';
+    } else {
+      els.statusMain.textContent = 'Nothing planned yet';
+      els.statusSub.textContent = 'Add line items or load the sample.';
+    }
+  }
+
+  function renderTotals(result) {
+    clear(els.totals);
+    if (result.items.length === 0) {
+      els.totals.appendChild(document.createTextNode('No line items.'));
+      return;
+    }
+    var parts = [];
+    for (var i = 0; i < result.items.length; i++) {
+      if (result.items[i].kind === 'output') continue;
+      if (result.items[i].tokens <= 0) continue;
+      parts.push(formatInt(result.items[i].tokens));
+    }
+    var eq = el('span', 'eq');
+    var sumLine = parts.length > 0 ? parts.join(' + ') + ' = ' + formatInt(result.consumerTokens) : '0';
+    eq.textContent = 'Input: ' + sumLine + ' tokens consumed.';
+    els.totals.appendChild(eq);
+
+    var eq2 = el('span', 'eq');
+    eq2.textContent = 'Plus reserved output: ' + formatInt(result.consumerTokens) + ' + ' +
+      formatInt(result.reserveTokens) + ' = ' + formatInt(result.total) + ' tokens total.';
+    els.totals.appendChild(eq2);
+
+    var eq3 = el('span', 'eq');
+    if (result.limit > 0) {
+      eq3.textContent = result.over
+        ? ('Against the limit: ' + formatInt(result.total) + ' - ' + formatInt(result.limit) + ' = ' + formatInt(result.overBy) + ' tokens over.')
+        : ('Against the limit: ' + formatInt(result.limit) + ' - ' + formatInt(result.total) + ' = ' + formatInt(result.headroom) + ' tokens of headroom.');
+    } else {
+      eq3.textContent = 'No limit set, so headroom cannot be computed.';
+    }
+    els.totals.appendChild(eq3);
+  }
+
+  function renderOverflow(result) {
+    clear(els.overflowBox);
+    if (!result.over) return;
+
+    var box = el('div', 'callout');
+    box.appendChild(el('h3', null, 'Over by ' + formatInt(result.overBy) + ' tokens. What to cut.'));
+
+    var intro = el('p', null, '');
+    intro.style.margin = '0';
+    intro.style.fontSize = '13.5px';
+    intro.style.color = 'var(--ink-soft)';
+    intro.textContent = 'Cutting any one of these by ' + formatInt(result.overBy) +
+      ' tokens brings the plan back inside the window. Items too small to absorb it on their own are marked.';
+    box.appendChild(intro);
+
+    var per = result.cuts.perItem;
+    var sorted = per.slice().sort(function (a, b) { return b.tokens - a.tokens; });
+
+    if (sorted.length === 0) {
+      intro.textContent = 'Nothing here can be cut: the only thing allocated is the reserved output block, ' +
+        'and the reserve is not a consumer to trim. Either raise the context limit or reserve less for the reply.';
+    } else {
+      var list = el('ul');
+      for (var i = 0; i < sorted.length; i++) {
+        var row = el('li');
+        row.appendChild(document.createTextNode(sorted[i].name + ': ' + formatInt(sorted[i].tokens) + ' tokens. '));
+        var tag = el('span', 'badge', sorted[i].possible ? ('trim ' + formatInt(sorted[i].trimBy)) : 'too small alone');
+        row.appendChild(tag);
+        list.appendChild(row);
+      }
+      box.appendChild(list);
+    }
+
+    if (sorted.length > 0 && !result.cuts.singleItem) {
+      var combo = el('p', null, '');
+      combo.style.marginTop = '10px';
+      combo.style.fontSize = '13.5px';
+      if (result.cuts.covered && result.cuts.combination.length > 1) {
+        var names = [];
+        for (var j = 0; j < result.cuts.combination.length; j++) names.push(result.cuts.combination[j].name);
+        combo.textContent = 'No single item is large enough on its own. Spread the cut across: ' + names.join(', ') + '.';
+      } else {
+        /* Honest about the case the cut list cannot solve: deleting every
+           consumer still leaves the plan over the limit. */
+        combo.textContent = 'Cutting is not enough here. Every consumer above totals only ' +
+          formatInt(result.consumerTokens) + ' tokens against an overflow of ' + formatInt(result.overBy) +
+          ', so removing all of them still leaves the plan over. Raise the context limit, or reserve less output.';
+      }
+      box.appendChild(combo);
+    }
+
+    els.overflowBox.appendChild(box);
+  }
+
+  /* ---------- checks ---------- */
+
+  function renderChecks(result) {
+    clear(els.checks);
+    if (result.checks.length === 0) {
+      var none = el('li', 'check lvl-info');
+      none.appendChild(el('span', 't', 'Nothing to report'));
+      els.checks.appendChild(none);
+      return;
+    }
+    var order = Object.create(null);
+    order.error = 0; order.warn = 1; order.ok = 2; order.info = 3;
+    var sorted = result.checks.slice().sort(function (a, b) {
+      var av = Object.prototype.hasOwnProperty.call(order, a.level) ? order[a.level] : 9;
+      var bv = Object.prototype.hasOwnProperty.call(order, b.level) ? order[b.level] : 9;
+      return av - bv;
+    });
+    for (var i = 0; i < sorted.length; i++) {
+      var c = sorted[i];
+      var li = el('li', 'check lvl-' + (Object.prototype.hasOwnProperty.call(order, c.level) ? c.level : 'info'));
+      li.appendChild(el('div', 't', c.title));
+      var d = el('div', 'd');
+      /* user-supplied item names appear here, so escape before using innerHTML */
+      d.innerHTML = escapeHtml(c.detail);
+      li.appendChild(d);
+      els.checks.appendChild(li);
+    }
+  }
+
+  /* ---------- turns ---------- */
+
+  function renderTurns(result) {
+    var t = result.turns;
+    if (!t || t.turns === null || t.turns === undefined) {
+      els.turnFigure.textContent = '-';
+      els.turnNote.textContent = t ? t.note : '';
+      return;
+    }
+    els.turnFigure.textContent = formatInt(t.turns) + (t.turns === 1 ? ' more turn' : ' more turns');
+    els.turnNote.textContent = t.note + '. This assumes history is the only thing that grows and that nothing is compacted or truncated along the way.';
+  }
+
+  /* ---------- exports ---------- */
+
+  function renderExports(result) {
+    var meta = { modelLabel: currentModelLabel() };
+    els.outMd.value = planToMarkdown(result, meta);
+    els.outJson.value = planToJson(result, meta);
+  }
+
+  /* ---------- recompute + render ---------- */
+
+  function recompute() {
+    var result = computePlan(state);
+    updateItemOutputs(result);
+    renderBar(result);
+    renderStatus(result);
+    renderTotals(result);
+    renderOverflow(result);
+    renderChecks(result);
+    renderTurns(result);
+    renderExports(result);
+    saveState();
+  }
+
+  function render() {
+    renderItems();
+    recompute();
+  }
+
+  function syncControlsFromState() {
+    els.modelSelect.value = state.modelKey;
+    if (els.modelSelect.value !== state.modelKey) els.modelSelect.value = 'custom';
+    els.limitInput.value = String(state.limit);
+    els.cptInput.value = String(state.charsPerToken);
+    els.expectedInput.value = String(state.expectedResponseTokens);
+    els.toolResultInput.value = String(state.typicalToolResultTokens);
+    els.avgTurnInput.value = String(state.avgTokensPerTurn);
+    els.toolPctInput.value = String(state.toolShareWarnPct);
+  }
+
+  /* ---------- wiring ---------- */
+
+  els.modelSelect.addEventListener('change', function () {
+    var preset = findPreset(els.modelSelect.value);
+    state.modelKey = els.modelSelect.value;
+    if (preset && preset.limit !== null) {
+      state.limit = preset.limit;
+      els.limitInput.value = String(preset.limit);
+    }
+    recompute();
+  });
+
+  els.limitInput.addEventListener('input', function () {
+    state.limit = Math.max(0, Math.round(toFiniteNumber(els.limitInput.value, 0)));
+    var preset = findPreset(state.modelKey);
+    if (!preset || preset.limit === null || preset.limit !== state.limit) {
+      /* the typed value wins; the preset label is kept but marked as edited */
+    }
+    recompute();
+  });
+
+  els.cptInput.addEventListener('input', function () {
+    var v = toFiniteNumber(els.cptInput.value, 4);
+    state.charsPerToken = v > 0 ? v : 4;
+    recompute();
+  });
+
+  els.expectedInput.addEventListener('input', function () {
+    state.expectedResponseTokens = Math.max(0, Math.round(toFiniteNumber(els.expectedInput.value, 0)));
+    recompute();
+  });
+
+  els.toolResultInput.addEventListener('input', function () {
+    state.typicalToolResultTokens = Math.max(0, Math.round(toFiniteNumber(els.toolResultInput.value, 0)));
+    recompute();
+  });
+
+  els.avgTurnInput.addEventListener('input', function () {
+    state.avgTokensPerTurn = Math.max(0, Math.round(toFiniteNumber(els.avgTurnInput.value, 0)));
+    recompute();
+  });
+
+  els.toolPctInput.addEventListener('input', function () {
+    state.toolShareWarnPct = Math.max(0, Math.min(100, toFiniteNumber(els.toolPctInput.value, 10)));
+    recompute();
+  });
+
+  function addItem(preset) {
+    var base = preset || { name: 'New line item', kind: 'other', mode: 'tokens', text: '', tokens: 0, units: 0, perUnit: 0 };
+    state.items.push({
+      id: nextId(),
+      name: base.name,
+      kind: base.kind,
+      mode: base.mode,
+      text: base.text || '',
+      tokens: base.tokens || 0,
+      units: base.units || 0,
+      perUnit: base.perUnit || 0
+    });
+    render();
+    var rows = els.itemsList.children;
+    if (rows.length > 0) {
+      var last = rows[rows.length - 1];
+      var firstInput = last.querySelector('input[type="text"]');
+      if (firstInput) {
+        firstInput.focus();
+        firstInput.select();
+      }
+    }
+  }
+
+  function loadPlan(plan) {
+    state = {
+      modelKey: plan.modelKey,
+      limit: plan.limit,
+      charsPerToken: plan.charsPerToken,
+      expectedResponseTokens: plan.expectedResponseTokens,
+      typicalToolResultTokens: plan.typicalToolResultTokens,
+      avgTokensPerTurn: plan.avgTokensPerTurn,
+      toolShareWarnPct: plan.toolShareWarnPct,
+      items: []
+    };
+    for (var i = 0; i < plan.items.length; i++) {
+      var s = plan.items[i];
+      state.items.push({
+        id: nextId(),
+        name: s.name,
+        kind: s.kind,
+        mode: s.mode,
+        text: s.text || '',
+        tokens: s.tokens || 0,
+        units: s.units || 0,
+        perUnit: s.perUnit || 0
+      });
+    }
+    syncControlsFromState();
+    render();
+  }
+
+  function bindClick(id, fn) {
+    var node = $(id);
+    if (node) node.addEventListener('click', fn);
+  }
+
+  bindClick('btn-add', function () { addItem(); });
+  bindClick('btn-add-2', function () { addItem(); });
+  bindClick('btn-empty-add', function () { addItem(); });
+  bindClick('btn-sample', function () { loadPlan(makeSamplePlan()); });
+  bindClick('btn-empty-sample', function () { loadPlan(makeSamplePlan()); });
+  bindClick('btn-reset', function () { loadPlan(makeStarterPlan()); });
+
+  function wireCopy(buttonId) {
+    var btn = $(buttonId);
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var targetId = btn.getAttribute('data-target');
+      var target = $(targetId);
+      if (!target) return;
+      var original = btn.getAttribute('data-label') || btn.textContent;
+      btn.setAttribute('data-label', original);
+
+      function done(message) {
+        btn.textContent = message;
+        window.setTimeout(function () { btn.textContent = original; }, 1600);
+      }
+
+      var text = target.value;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          done('Copied');
+        }, function () {
+          target.focus();
+          target.select();
+          done('Press Ctrl+C');
+        });
+      } else {
+        target.focus();
+        target.select();
+        done('Press Ctrl+C');
+      }
+    });
+  }
+
+  wireCopy('btn-copy-md');
+  wireCopy('btn-copy-json');
+
+  /* ---------- boot ---------- */
+
+  initTheme();
+  buildModelSelect();
+
+  var restored = loadState();
+  if (restored && restored.items.length > 0) {
+    loadPlan(restored);
+  } else {
+    syncControlsFromState();
+    render();
+  }
+})();
+</script>
+</body>
+</html>
