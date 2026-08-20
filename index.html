@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -337,6 +337,45 @@ footer.bottom nav { display: flex; flex-wrap: wrap; gap: 8px 18px; }
   } catch (err) { /* storage blocked; stay on the default dark theme */ }
 })();
 </script>
+<style>
+/* elitesystem brand tokens: chrome only, meaning preserved */
+:root, :root[data-theme="dark"] {
+  --accent: #d4ff3a;
+  --accent-2: #ffb454;
+  --bg: #0a0a0a;
+  --err: #ff6450;
+  --ink: #e8e8e3;
+  --ink-dim: #a8a8a3;
+  --ink-soft: #a8a8a3;
+  --line: #1f1f1d;
+  --line-soft: #1f1f1d;
+  --ok: #7ddc7d;
+  --on-accent: #0a0a0a;
+  --surface: #111110;
+  --surface-2: #161614;
+  --surface-3: #161614;
+  --warn: #ffb454;
+}
+:root[data-theme="light"] {
+  --accent: #2d6b00;
+  --accent-2: #a05a00;
+  --bg: #e8ebef;
+  --err: #b8341a;
+  --ink: #0a0a0a;
+  --ink-dim: #2a2a27;
+  --ink-soft: #2a2a27;
+  --line: #c8cdd5;
+  --line-soft: #c8cdd5;
+  --ok: #1a5c2e;
+  --on-accent: #ffffff;
+  --surface: #dee2e8;
+  --surface-2: #d3d7df;
+  --surface-3: #d3d7df;
+  --warn: #a05a00;
+}
+:root { color-scheme: dark; }
+:root[data-theme="light"] { color-scheme: light; }
+</style>
 </head>
 <body>
 <a class="skip" href="#main">Skip to the planner</a>
