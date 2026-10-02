@@ -2,6 +2,8 @@
 
 Plan an agent's context window like a budget: allocate it across every consumer, watch the stacked bar, and find the overflow before production does.
 
+**Live demo:** https://0xelitesystem.github.io/context-budget-planner/
+
 ## Live demo
 
 https://0xelitesystem.github.io/context-budget-planner/
@@ -45,9 +47,33 @@ Everything is arithmetic you can check by hand, which is why the arithmetic is p
 
 The core logic lives in pure functions (`computePlan`, `computeItemTokens`, `estimateTokensFromText`, `computeTurnsUntilOverflow`, `suggestCuts`, `planToMarkdown`, `planToJson`) that take input and return a result object with no DOM access, so they can be read, lifted, or tested on their own.
 
+## Use
+
+1. Pick a model context limit from the list, or type your own window size.
+2. Add line items (system prompt, tool definitions, history, retrieved chunks and so on) and size each one by pasting its text, entering a token count, or entering a unit count times a per-unit size.
+3. Watch the stacked bar and the checks: any overflow is drawn in red with a list of what to cut, plus the turns left before history fills the window.
+4. Export the plan as Markdown or JSON. Press **Load sample** first if you want to see a plan that overflows.
+
+## Why this exists
+
+Agent prompts fail quietly when the system prompt, tool definitions, retrieval and history together outgrow the context window, and the usual discovery point is production. This tool lets you budget the window up front with arithmetic you can check by hand. It is a single HTML file with no tracking and no network calls, and it is MIT licensed.
+
 ## Privacy
 
 Everything runs in your browser. Your prompts, your numbers, and your plan never leave the page. There are no network requests, no external dependencies, no fonts or scripts fetched from anywhere, and no analytics. Your plan and your theme choice are saved to `localStorage` on your own machine so the page survives a refresh; clearing site data removes them. Verify all of this by reading the single HTML file, or by opening DevTools and watching an empty network tab.
+
+## Run locally
+
+```
+git clone https://github.com/0xelitesystem/context-budget-planner
+cd context-budget-planner
+```
+
+Then open `index.html` in any modern browser, or serve the folder with `python -m http.server` and visit http://localhost:8000/.
+
+## Build
+
+No build step. The whole tool is one `index.html` file with inline CSS and JavaScript, and there is nothing to install or compile.
 
 ## License
 
