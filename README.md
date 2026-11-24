@@ -8,7 +8,7 @@ Plan an agent's context window like a budget: allocate it across every consumer,
 
 https://0xelitesystem.github.io/context-budget-planner/
 
-The sibling tools [prompt-cost-calculator](https://github.com/0xelitesystem/prompt-cost-calculator) and [prompt-token-meter](https://github.com/0xelitesystem/prompt-token-meter) price and measure a **single prompt**; this one **allocates a whole agent context window** across the consumers competing for it and shows you the overflow before production does.
+The sibling tools [prompt-cost-across-models](https://github.com/0xelitesystem/prompt-cost-across-models) and [context-window-gauges](https://github.com/0xelitesystem/context-window-gauges) price and measure a **single prompt**; this one **allocates a whole agent context window** across the consumers competing for it and shows you the overflow before production does.
 
 ## Features
 
@@ -35,7 +35,7 @@ Everything is arithmetic you can check by hand, which is why the arithmetic is p
 **Token estimation is a heuristic, not a tokenizer.** Items sized by pasted text are counted as `characters / characters-per-token`, rounded up, with the divisor exposed as an editable input (default 4). This is an approximation. The true count varies by tokenizer and by language, and code, JSON, and non-Latin scripts tokenize very differently from English prose. Treat estimated items as approximate and enter measured counts when you have them.
 
 - To see where real token boundaries fall, use [tokenizer-visualizer](https://github.com/0xelitesystem/tokenizer-visualizer).
-- To turn a token count into money, use [prompt-cost-calculator](https://github.com/0xelitesystem/prompt-cost-calculator).
+- To turn a token count into money, use [prompt-cost-across-models](https://github.com/0xelitesystem/prompt-cost-across-models).
 
 **Totals.** Consumers are summed, the reserved output block is summed separately, and the two are added. Headroom is `limit - total`. Overflow is `total - limit`. Share of window is `item tokens / limit`.
 
@@ -83,6 +83,6 @@ MIT. See [LICENSE](LICENSE).
 
 - Every tool in the catalog: https://0xelitesystem.github.io/
 - The shop behind it: https://elitesystem.ai
-- [prompt-cost-calculator](https://github.com/0xelitesystem/prompt-cost-calculator), price a single prompt across providers
-- [prompt-token-meter](https://github.com/0xelitesystem/prompt-token-meter), measure a single prompt as you type
+- [prompt-cost-across-models](https://github.com/0xelitesystem/prompt-cost-across-models), price a single prompt across providers
+- [context-window-gauges](https://github.com/0xelitesystem/context-window-gauges), measure a single prompt as you type
 - [tokenizer-visualizer](https://github.com/0xelitesystem/tokenizer-visualizer), see where token boundaries actually fall
