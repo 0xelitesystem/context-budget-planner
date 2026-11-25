@@ -34,7 +34,7 @@ Everything is arithmetic you can check by hand, which is why the arithmetic is p
 
 **Token estimation is a heuristic, not a tokenizer.** Items sized by pasted text are counted as `characters / characters-per-token`, rounded up, with the divisor exposed as an editable input (default 4). This is an approximation. The true count varies by tokenizer and by language, and code, JSON, and non-Latin scripts tokenize very differently from English prose. Treat estimated items as approximate and enter measured counts when you have them.
 
-- To see where real token boundaries fall, use [tokenizer-visualizer](https://github.com/0xelitesystem/tokenizer-visualizer).
+- To see where real token boundaries fall, use [token-boundary-viewer](https://github.com/0xelitesystem/token-boundary-viewer).
 - To turn a token count into money, use [prompt-cost-across-models](https://github.com/0xelitesystem/prompt-cost-across-models).
 
 **Totals.** Consumers are summed, the reserved output block is summed separately, and the two are added. Headroom is `limit - total`. Overflow is `total - limit`. Share of window is `item tokens / limit`.
@@ -85,4 +85,4 @@ MIT. See [LICENSE](LICENSE).
 - The shop behind it: https://elitesystem.ai
 - [prompt-cost-across-models](https://github.com/0xelitesystem/prompt-cost-across-models), price a single prompt across providers
 - [context-window-gauges](https://github.com/0xelitesystem/context-window-gauges), measure a single prompt as you type
-- [tokenizer-visualizer](https://github.com/0xelitesystem/tokenizer-visualizer), see where token boundaries actually fall
+- [token-boundary-viewer](https://github.com/0xelitesystem/token-boundary-viewer), see where token boundaries actually fall
